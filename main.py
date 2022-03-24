@@ -1,44 +1,41 @@
-from telethon import TelegramClient
-from telethon.tl.functions.account import UpdateProfileRequest
-
-import aiocron
-
-from configparser import ConfigParser
 from datetime import datetime
+from random import choice
+
+from aiocron import crontab
+from pyrogram import Client, idle
 from pytz import timezone
 
-import string
-import random
+api_id = 0
+api_hash = ""
 
+phone_number = ""
 
-# Config
-conf = ConfigParser()
-conf.read('./config.ini')
+time_zone = timezone("Asia/Tehran")
 
-api_id = int(conf.get('account', 'api_id'))
-api_hash = conf.get('account', 'api_hash')
-phone_number = conf.get('account', 'phone_number')
-
-client = TelegramClient('session', api_id, api_hash)
-client.start(phone=phone_number)
-
-TIMEZONE = conf.get('time', 'timezone')
-FONTS = [
+fonts = [
     ["𝟬", "𝟭", "𝟮", "𝟯", "𝟰", "𝟱", "𝟲", "𝟳", "𝟴", "𝟵"],
     ["𝟘", "𝟙", "𝟚", "𝟛", "𝟜", "𝟝", "𝟞", "𝟟", "𝟠", "𝟡"],
     ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"],
 ]
 
-
-# Crontab
-@aiocron.crontab('*/1 * * * *')
-async def update_profile():
-    now = datetime.now(timezone(TIMEZONE))
-    table = str.maketrans(string.digits, ''.join(random.choice(FONTS)))
-    time = now.strftime("%H:%M").translate(table)
-    await client(UpdateProfileRequest(last_name=time))
+app = Client(
+    "bot",
+    api_id,
+    api_hash,
+    phone_number=phone_number,
+)
 
 
-if __name__ == '__main__':
-    client.loop.run_until_complete(client.run_until_disconnected())
+@crontab("*/1 * * * *", tz=time_zone, start=False)
+async def change_name():
+    table = str.maketrans("0123456789", "".join(choice(fonts)))
+    time = datetime.now(time_zone).strftime("%H:%M")
+    await app.update_profile(last_name=time.translate(table))
 
+
+if __name__ == "__main__":
+    app.start()
+    change_name.start()
+    idle()
+    change_name.stop()
+    app.stop()
